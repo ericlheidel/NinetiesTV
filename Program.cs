@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Numerics;
 using NinetiesTV;
 
 List<Show> shows = DataLoader.GetShows();
@@ -262,10 +263,111 @@ static string AllNamesWithCommasPlsAnd(List<Show> shows)
 **************************************************************************************************/
 
 // 1. Return the genres of the shows that started in the 80s.
+// ResultPrinter.Print("Genres of Shows from the 80s", GenresFromThe80s(shows));
+
+static List<string> GenresFromThe80s(List<Show> shows)
+{
+    var showsInThe80s = shows.Where(s => s.StartYear >= 1980 && s.StartYear <= 1989).ToList();
+
+    return showsInThe80s.SelectMany(s => s.Genres).Distinct().ToList();
+}
+
 // 2. Print a unique list of genres.
+ResultPrinter.Print("List of Genres", ListOfGenres(shows));
+
+static List<string> ListOfGenres(List<Show> shows)
+{
+    return shows
+            .SelectMany(s => s.Genres)
+            .Distinct()
+            .ToList();
+}
+
 // 3. Print the years 1987 - 2018 along with the number of shows that started in each year (note many years will have zero shows)
+// ResultPrinter.Print("List of Genres", YearsAndShows(shows));
+
+static List<string> YearsAndShows(List<Show> shows)
+{
+    // filter shows and turn them into a dictionary
+    var showsStartedEachYear = shows
+                                // conditional for years 1987 --> 2018
+                                .Where(s => s.StartYear >= 1987 && s.StartYear <= 2018)
+                                // condense to years (no repeats)
+                                .GroupBy(s => s.StartYear)
+                                // create a dictionary
+                                .ToDictionary(g => g.Key, g => g.Count());
+
+    //declare a new list to add dictionary values to
+    List<string> results = new List<string>();
+
+    // for each year in range
+    for (int year = 1987; year <= 2018; year++)
+    {
+        // we have the year already so if the entry has a value, then count equals the value, if not, it defaults to 0
+        int count = showsStartedEachYear.ContainsKey(year) ? showsStartedEachYear[year] : 0;
+
+        // these are interpolated into string format and returned
+        results.Add($"Year: {year}, Number of Shows: {count}");
+    }
+
+    return results;
+}
+
 // 4. Assume each episode of a comedy is 22 minutes long and each episode of a show that isn't a comedy is 42 minutes. How long would it take to watch every episode of each show?
+// ResultPrinter.Print("List of Genres", HowLong(shows));
+
+static string HowLong(List<Show> shows)
+{
+    // where show is a comedy,Sum the episode count and multiply by 22
+    var comedyTime = shows
+                        .Where(s => s.Genres.Contains("Comedy"))
+                        .Sum(s => s.EpisodeCount * 22);
+
+    // where show is not a comedy, sum the episode count and multiple by 42
+    var nonComedyTime = shows
+                            .Where(s => !s.Genres.Contains("Comedy)"))
+                            .Sum(s => s.EpisodeCount * 42);
+
+    // divide total minutes by the amount of minutes in 24 hours (1 day)
+    int days = (comedyTime + nonComedyTime) / 1440;
+
+    // return the number of days
+    return $"{days} Days";
+}
 // 5. Assume each show ran each year between its start and end years (which isn't true), which year had the highest average IMDB rating.
+ResultPrinter.Print("Year with the highest average IMDB rating", YearWithHighestRating(shows));
+
+static int YearWithHighestRating(List<Show> shows)
+{
+    //make dictionary holding an integer and a tuple (of cumulative totalRating and showCount)
+    Dictionary<int, (double totalRating, int showCount)>
+        ratingsByYear = new
+            Dictionary<int, (double totalRating, int showCount)>();
+
+    foreach (var show in shows)
+    {
+        // iterate years in range for show
+        for (int year = show.StartYear; year <= show.EndYear; year++)
+        {
+            // if year doesn't have tuple entry, initialize 0 for both
+            if (!ratingsByYear.ContainsKey(year))
+            {
+                ratingsByYear[year] = (0, 0);
+            }
+
+            //ratings for that year and increased showCount by 1
+            ratingsByYear[year] =
+                (ratingsByYear[year].totalRating + show.ImdbRating, ratingsByYear[year].showCount + 1);
+        }
+    }
+
+    //Select dictionary into new with new properties from key and the tuple
+    return ratingsByYear.Select(rby => new { Year = rby.Key, AverageRating = rby.Value.totalRating / rby.Value.showCount })
+                .OrderByDescending(x => x.AverageRating)
+                //select just the year
+                .Select(x => x.Year)
+                .FirstOrDefault();
+}
 
 
 
